@@ -37,8 +37,8 @@ img2pdf
 Clone the repository or download the script:
 
 ```bash
-git clone https://github.com/your-username/mangapark-downloader.git
-cd mangapark-downloader
+git clone https://github.com/Yui007/mangapark_downloader
+cd mangapark_downloader
 ```
 
 Run the script:
