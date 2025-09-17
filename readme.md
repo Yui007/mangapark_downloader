@@ -1,81 +1,71 @@
-# MangaPark Downloader
+#  MangaPark Downloader
 
-A Python script to download manga chapters from [mangapark.net](https://mangapark.net) using Selenium and convert them into CBZ or PDF formats.
+<p align="center">
+  <img src="gui/GUI.PNG" alt="MangaPark Downloader GUI" width="750"/>
+</p>
 
-## Features
+<p align="center">
+    A sleek and powerful Python application for downloading manga from <a href="https://mangapark.net">MangaPark</a>.
+    <br />
+    Features a modern graphical interface, multi-threaded downloads, and automatic conversion to CBZ and PDF formats.
+</p>
 
-- Fetches manga chapter list from MangaPark
-- Downloads manga chapter images using headless Chrome
-- Filters out icons/small images to avoid junk
-- Multi-threaded downloading for faster performance
-- Converts downloaded chapters to:
-  - CBZ (Comic Book Zip)
-  - PDF (if image format supported)
-- Interactive CLI
+## ✨ Features
 
-## Requirements
+-   **Modern GUI**: A user-friendly interface built with PyQt6 for a seamless experience.
+-   **Concurrent Downloads**: Utilizes multi-threading to download chapters faster.
+-   **Smart Image Filtering**: Intelligently skips icons and small, irrelevant images.
+-   **Format Conversion**: Automatically converts chapters into `.cbz` or `.pdf` files.
+-   **Flexible Selection**: Download single chapters, a range, or all chapters of a manga.
+-   **Command-Line Interface**: Also supports a full-featured CLI for terminal lovers.
 
-- Python 3.7+
-- Google Chrome
-- ChromeDriver (matching your Chrome version)
+## 🚀 Getting Started
 
-## Python Dependencies
+### Prerequisites
 
-Install the dependencies using pip:
+-   Python 3.7+
+-   Google Chrome
+-   [ChromeDriver](https://chromedriver.chromium.org/downloads) (must match your Chrome version and be in your system's PATH).
+
+### Installation
+
+1.  **Clone the repository:**
+    ```bash
+    git clone https://github.com/your-username/mangapark-downloader.git
+    cd mangapark-downloader
+    ```
+
+2.  **Install dependencies:**
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+### Running the Application
+
+To launch the graphical interface, run:
 
 ```bash
-pip install -r requirements.txt
+python -m gui.app
 ```
 
-requests
-beautifulsoup4
-selenium
-Pillow
-img2pdf
-
-## Usage
-Clone the repository or download the script:
-
-```bash
-git clone https://github.com/Yui007/mangapark_downloader
-cd mangapark_downloader
-```
-
-Run the script:
+Alternatively, you can use the command-line version:
 
 ```bash
 python mangapark.py
 ```
 
-Enter the manga URL from https://mangapark.net when prompted.
+## ⚙️ Usage
 
-Select the chapter(s) to download:
+1.  **Launch the app** and paste a MangaPark URL into the input field.
+2.  Click **"Fetch Chapters"** to load the available chapters.
+3.  **Select** the chapters you wish to download from the list.
+4.  Configure **download options**:
+    -   Enable/disable threaded downloads.
+    -   Set the number of concurrent workers.
+    -   Choose a conversion format (`none`, `cbz`, `pdf`, `both`).
+    -   Opt to delete the source images after conversion.
+5.  Click **"Start Download"** and monitor the progress in the activity log.
 
-Single: 5
+## 📜 License
 
-Range: 5-10
-
-All: all
-
-Choose whether to use multi-threading.
-
-Choose conversion output: CBZ, PDF, both, or none.
-
-## Notes
-Downloaded files will be saved in the downloads/ directory.
-
-CBZ and PDF files will be saved in the same location as the chapter folder.
-
-Chrome must be installed and the correct chromedriver must be accessible in your system path.
-
-## Example
-```text
-Enter the URL of the manga on mangapark.net: https://mangapark.net/title/abc123
-Enter chapter number to download (single) or a range (e.g., 5-10), or 'all' for all chapters: 1-3
-Use multi-threading for faster downloads? (y/n): y
-Enter maximum number of concurrent downloads (recommended: 3-8): 5
-Convert downloaded chapters to CBZ or PDF? (cbz/pdf/both/none): both
-```
-
-## License
-This project is licensed under the MIT License.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

@@ -3,6 +3,7 @@ import time
 import requests
 from bs4 import BeautifulSoup
 import os
+from urllib.parse import urljoin
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
@@ -22,7 +23,7 @@ def get_chapter_info(manga_url):
     try:
         response = requests.get(manga_url)
         response.raise_for_status()  # Raise an exception for bad status codes
-        soup = BeautifulSoup(response.content, 'html.parser')
+        soup = BeautifulSoup(response.text, 'html.parser')
 
         chapters = []
         chapter_elements = soup.select('div.px-2.py-2.flex.flex-wrap.justify-between.hover\\:bg-accent\\/5.border-b.border-base-300\\/50 a.link-hover.link-primary.visited\\:text-accent')
@@ -137,7 +138,7 @@ def download_chapter_with_selenium(chapter_url, chapter_title, max_concurrent_do
     try:
         # Construct the absolute chapter URL
         base_url = "https://mangapark.net"
-        absolute_chapter_url = requests.compat.urljoin(base_url, chapter_url)
+        absolute_chapter_url = urljoin(base_url, chapter_url)
         
         # Initialize the driver
         driver = webdriver.Chrome(options=chrome_options)
@@ -266,7 +267,9 @@ def create_pdf(chapter_dir, chapter_title):
         # Create PDF file
         pdf_path = f"{chapter_dir}.pdf"
         with open(pdf_path, "wb") as f:
-            f.write(img2pdf.convert(image_files))
+            pdf_bytes = img2pdf.convert(image_files)
+            if pdf_bytes:
+                f.write(pdf_bytes)
         
         print(f"Created PDF file: {pdf_path}")
         return pdf_path
