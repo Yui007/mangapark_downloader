@@ -106,9 +106,10 @@ class TaskRunnable(QRunnable):
             self.signals.finished.emit()
 
 
-def fetch_chapter_metadata(signals: WorkerSignals, manga_url: str):
-    signals.log.emit(f"Fetching chapter information from {manga_url}...")
-    chapters = get_chapter_info(manga_url)
+def fetch_chapter_metadata(signals: WorkerSignals, manga_url: str, use_nsfw_mode: bool = False):
+    mode = "NSFW" if use_nsfw_mode else "SFW"
+    signals.log.emit(f"Fetching chapter information from {manga_url} using {mode} mode...")
+    chapters = get_chapter_info(manga_url, use_nsfw_mode)
     if not chapters:
         raise ValueError("No chapters found. Verify the URL or try again later.")
     signals.log.emit(f"Found {len(chapters)} chapter(s).")
@@ -225,6 +226,8 @@ class MangaParkWindow(QMainWindow):
         grid.addWidget(self.chapter_list, 1, 1)
 
         options = QHBoxLayout()
+        self.nsfw_box = QCheckBox("Enable NSFW mode")
+        self.nsfw_box.setToolTip("Enable NSFW mode to access adult content (requires browser)")
         self.threading_box = QCheckBox("Use threaded downloads")
         self.threading_box.setChecked(True)
         self.concurrency_spin = QSpinBox()
@@ -234,6 +237,7 @@ class MangaParkWindow(QMainWindow):
         self.convert_combo.addItems(["none", "cbz", "pdf", "both"])
         self.cleanup_box = QCheckBox("Delete images after converting")
         for widget in (
+            self.nsfw_box,
             self.threading_box,
             QLabel("Concurrency"),
             self.concurrency_spin,
@@ -293,7 +297,8 @@ class MangaParkWindow(QMainWindow):
         if not url:
             self._show_error("Please enter a MangaPark URL.")
             return
-        worker = TaskRunnable(fetch_chapter_metadata, url)
+        use_nsfw = self.nsfw_box.isChecked()
+        worker = TaskRunnable(fetch_chapter_metadata, url, use_nsfw)
         self._append_log("Retrieving chapters...")
         self._set_busy(True)
         self._bind_worker(worker, self._populate_chapters)

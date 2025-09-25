@@ -17,81 +17,144 @@ import zipfile
 import shutil
 import img2pdf
 
-def get_chapter_info(manga_url):
-    """Scrapes the manga page for chapter titles and URLs using Selenium."""
+def get_chapter_info(manga_url, use_nsfw_mode=False):
+    """Scrapes the manga page for chapter titles and URLs."""
     print(f"Fetching chapter information from: {manga_url}")
 
-    driver = None
+    if use_nsfw_mode:
+        print("Using NSFW mode (Selenium)...")
+        driver = None
+        try:
+            # Initialize browser with NSFW settings enabled
+            driver = initialize_browser_with_nsfw()
+
+            # Navigate to the manga page
+            driver.get(manga_url)
+
+            # Wait for the page to load and JavaScript to execute
+            print("Waiting for page to load...")
+            time.sleep(8)  # Give time for JavaScript to load chapters
+
+            # Try to find chapter elements with multiple selectors
+            chapter_elements = []
+
+            # Primary selector based on the HTML structure
+            chapter_elements = driver.find_elements(By.CSS_SELECTOR, 'a.link-hover.link-primary.visited\\:text-accent')
+
+            if not chapter_elements:
+                # Fallback selectors
+                selectors_to_try = [
+                    'a[href*="/title/"][href*="/chapter"]',
+                    'a[href*="/c"]',
+                    '.chapter-list a',
+                    '[data-mal-sync-episode] a',
+                    'a[href*="chapter"]'
+                ]
+
+                for selector in selectors_to_try:
+                    chapter_elements = driver.find_elements(By.CSS_SELECTOR, selector)
+                    if chapter_elements:
+                        print(f"Found chapters using selector: {selector}")
+                        break
+
+            if not chapter_elements:
+                print("No chapter elements found. Saving page source for debugging...")
+                # Save the page source for debugging
+                debug_file = os.path.join("downloads", "debug_page_selenium.html")
+                os.makedirs("downloads", exist_ok=True)
+                with open(debug_file, 'w', encoding='utf-8') as f:
+                    f.write(driver.page_source)
+                print(f"Debug page saved to: {debug_file}")
+                return None
+
+            print(f"Found {len(chapter_elements)} potential chapters")
+
+            chapters = []
+            for element in chapter_elements:
+                try:
+                    title = element.text.strip()
+                    href = element.get_attribute('href')
+
+                    # Skip if title is empty or too short
+                    if not title or len(title) < 3:
+                        continue
+
+                    # Skip if href is empty or not a chapter link
+                    if not href or ('/title/' not in href and '/c' not in href):
+                        continue
+
+                    # Construct absolute URL
+                    if href.startswith('http'):
+                        url = href
+                    else:
+                        url = urljoin(manga_url, href)
+
+                    chapters.append({'title': title, 'url': url})
+
+                except Exception as e:
+                    print(f"Error processing chapter element: {e}")
+                    continue
+
+            # Remove duplicates based on URL
+            seen_urls = set()
+            unique_chapters = []
+            for chapter in chapters:
+                if chapter['url'] not in seen_urls:
+                    seen_urls.add(chapter['url'])
+                    unique_chapters.append(chapter)
+
+            chapters = unique_chapters
+
+            # Reverse the chapters list so chapter 1 is at index 0
+            chapters.reverse()
+
+            print(f"Found {len(chapters)} unique chapters")
+            return chapters
+
+        except Exception as e:
+            print(f"Error in Selenium processing: {e}")
+            return None
+        finally:
+            if driver:
+                driver.quit()
+    else:
+        print("Using SFW mode (requests + BeautifulSoup)...")
+        return get_chapter_info_sfw(manga_url)
+
+def get_chapter_info_sfw(manga_url):
+    """Scrapes the manga page for chapter titles and URLs using requests + BeautifulSoup (SFW mode)."""
+    print(f"Fetching chapter information from: {manga_url}")
     try:
-        # Initialize browser with NSFW settings enabled
-        driver = initialize_browser_with_nsfw()
+        response = requests.get(manga_url)
+        response.raise_for_status()  # Raise an exception for bad status codes
+        soup = BeautifulSoup(response.text, 'html.parser')
 
-        # Navigate to the manga page
-        driver.get(manga_url)
-
-        # Wait for the page to load and JavaScript to execute
-        print("Waiting for page to load...")
-        time.sleep(8)  # Give time for JavaScript to load chapters
-
-        # Try to find chapter elements with multiple selectors
-        chapter_elements = []
-
-        # Primary selector based on the HTML structure
-        chapter_elements = driver.find_elements(By.CSS_SELECTOR, 'a.link-hover.link-primary.visited\\:text-accent')
+        chapters = []
+        chapter_elements = soup.select('a.link-hover.link-primary.visited\\:text-accent')
 
         if not chapter_elements:
-            # Fallback selectors
-            selectors_to_try = [
-                'a[href*="/title/"][href*="/chapter"]',
-                'a[href*="/c"]',
-                '.chapter-list a',
-                '[data-mal-sync-episode] a',
-                'a[href*="chapter"]'
-            ]
-
-            for selector in selectors_to_try:
-                chapter_elements = driver.find_elements(By.CSS_SELECTOR, selector)
-                if chapter_elements:
-                    print(f"Found chapters using selector: {selector}")
-                    break
-
-        if not chapter_elements:
-            print("No chapter elements found. Saving page source for debugging...")
-            # Save the page source for debugging
-            debug_file = os.path.join("downloads", "debug_page_selenium.html")
+            print("No chapter elements found. Saving page for debugging...")
+            # Save the page for debugging
+            debug_file = os.path.join("downloads", "debug_page_sfw.html")
             os.makedirs("downloads", exist_ok=True)
             with open(debug_file, 'w', encoding='utf-8') as f:
-                f.write(driver.page_source)
+                f.write(str(soup.prettify()))
             print(f"Debug page saved to: {debug_file}")
             return None
 
         print(f"Found {len(chapter_elements)} potential chapters")
 
-        chapters = []
-        for element in chapter_elements:
-            try:
-                title = element.text.strip()
-                href = element.get_attribute('href')
+        for chapter_element in chapter_elements:
+            title = chapter_element.get_text(strip=True)
+            href = chapter_element['href']
 
-                # Skip if title is empty or too short
-                if not title or len(title) < 3:
-                    continue
+            # Construct absolute URL - handle both relative and absolute URLs
+            if href.startswith('http'):
+                url = href
+            else:
+                url = urljoin(manga_url, href)
 
-                # Skip if href is empty or not a chapter link
-                if not href or ('/title/' not in href and '/c' not in href):
-                    continue
-
-                # Construct absolute URL
-                if href.startswith('http'):
-                    url = href
-                else:
-                    url = urljoin(manga_url, href)
-
-                chapters.append({'title': title, 'url': url})
-
-            except Exception as e:
-                print(f"Error processing chapter element: {e}")
-                continue
+            chapters.append({'title': title, 'url': url})
 
         # Remove duplicates based on URL
         seen_urls = set()
@@ -109,12 +172,9 @@ def get_chapter_info(manga_url):
         print(f"Found {len(chapters)} unique chapters")
         return chapters
 
-    except Exception as e:
-        print(f"Error in Selenium processing: {e}")
+    except requests.exceptions.RequestException as e:
+        print(f"Error fetching manga page: {e}")
         return None
-    finally:
-        if driver:
-            driver.quit()
 
 def is_valid_manga_image(img_data, min_width=400, min_height=400, min_aspect_ratio=1.2):
     """
@@ -429,9 +489,13 @@ def download_chapters_threaded(chapters_to_download, max_concurrent_downloads=5)
 def main():
     # Ask user for manga URL
     manga_url = input("Enter the URL of the manga on mangapark.net: ")
-    
+
+    # Ask user for NSFW mode
+    nsfw_choice = input("Enable NSFW mode for adult content? (y/n): ").lower()
+    use_nsfw_mode = nsfw_choice == 'y'
+
     # Get chapter information
-    chapters = get_chapter_info(manga_url)
+    chapters = get_chapter_info(manga_url, use_nsfw_mode)
     
     if not chapters:
         print("No chapters found or error occurred.")
