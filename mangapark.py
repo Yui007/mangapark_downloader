@@ -279,7 +279,7 @@ def enable_nsfw_settings(driver):
         return False
 
 def initialize_browser_with_nsfw():
-    """Initialize browser and enable NSFW settings globally."""
+    """Initialize browser and enable NSFW settings globally (for chapter scraping only)."""
     print("Initializing browser with NSFW settings...")
 
     # Setup Chrome options for faster performance
@@ -312,6 +312,32 @@ def initialize_browser_with_nsfw():
 
     return driver
 
+def initialize_browser():
+    """Initialize browser without NSFW settings (for downloads only)."""
+    print("Initializing browser for downloads...")
+
+    # Setup Chrome options for faster performance
+    chrome_options = Options()
+    chrome_options.add_argument("--headless")  # Run in headless mode for speed
+    chrome_options.add_argument("--disable-gpu")
+    chrome_options.add_argument("--window-size=1920,1080")
+    chrome_options.add_argument("--disable-web-security")
+    chrome_options.add_argument("--disable-features=VizDisplayCompositor")
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-dev-shm-usage")
+    chrome_options.add_argument("--disable-extensions")
+    chrome_options.add_argument("--disable-default-apps")
+    chrome_options.add_argument("--disable-background-timer-throttling")
+    chrome_options.add_argument("--disable-renderer-backgrounding")
+    chrome_options.add_argument("--disable-backgrounding-occluded-windows")
+    chrome_options.add_argument("--disable-ipc-flooding-protection")
+
+    # Set eager page load strategy for faster loading
+    chrome_options.page_load_strategy = 'eager'
+
+    driver = webdriver.Chrome(options=chrome_options)
+    return driver
+
 def download_chapter_with_selenium(chapter_url, chapter_title, max_concurrent_downloads=5):
     """Downloads images for a single chapter using Selenium."""
     print(f"Downloading chapter: {chapter_title}")
@@ -327,8 +353,8 @@ def download_chapter_with_selenium(chapter_url, chapter_title, max_concurrent_do
         base_url = "https://mangapark.net"
         absolute_chapter_url = urljoin(base_url, chapter_url)
 
-        # Initialize browser with NSFW settings enabled
-        driver = initialize_browser_with_nsfw()
+        # Initialize browser without NSFW settings (downloads don't need NSFW)
+        driver = initialize_browser()
 
         # Navigate to the chapter
         driver.get(absolute_chapter_url)
