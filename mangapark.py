@@ -18,29 +18,103 @@ import shutil
 import img2pdf
 
 def get_chapter_info(manga_url):
-    """Scrapes the manga page for chapter titles and URLs."""
+    """Scrapes the manga page for chapter titles and URLs using Selenium."""
     print(f"Fetching chapter information from: {manga_url}")
+
+    driver = None
     try:
-        response = requests.get(manga_url)
-        response.raise_for_status()  # Raise an exception for bad status codes
-        soup = BeautifulSoup(response.text, 'html.parser')
+        # Initialize browser with NSFW settings enabled
+        driver = initialize_browser_with_nsfw()
+
+        # Navigate to the manga page
+        driver.get(manga_url)
+
+        # Wait for the page to load and JavaScript to execute
+        print("Waiting for page to load...")
+        time.sleep(8)  # Give time for JavaScript to load chapters
+
+        # Try to find chapter elements with multiple selectors
+        chapter_elements = []
+
+        # Primary selector based on the HTML structure
+        chapter_elements = driver.find_elements(By.CSS_SELECTOR, 'a.link-hover.link-primary.visited\\:text-accent')
+
+        if not chapter_elements:
+            # Fallback selectors
+            selectors_to_try = [
+                'a[href*="/title/"][href*="/chapter"]',
+                'a[href*="/c"]',
+                '.chapter-list a',
+                '[data-mal-sync-episode] a',
+                'a[href*="chapter"]'
+            ]
+
+            for selector in selectors_to_try:
+                chapter_elements = driver.find_elements(By.CSS_SELECTOR, selector)
+                if chapter_elements:
+                    print(f"Found chapters using selector: {selector}")
+                    break
+
+        if not chapter_elements:
+            print("No chapter elements found. Saving page source for debugging...")
+            # Save the page source for debugging
+            debug_file = os.path.join("downloads", "debug_page_selenium.html")
+            os.makedirs("downloads", exist_ok=True)
+            with open(debug_file, 'w', encoding='utf-8') as f:
+                f.write(driver.page_source)
+            print(f"Debug page saved to: {debug_file}")
+            return None
+
+        print(f"Found {len(chapter_elements)} potential chapters")
 
         chapters = []
-        chapter_elements = soup.select('div.px-2.py-2.flex.flex-wrap.justify-between.hover\\:bg-accent\\/5.border-b.border-base-300\\/50 a.link-hover.link-primary.visited\\:text-accent')
+        for element in chapter_elements:
+            try:
+                title = element.text.strip()
+                href = element.get_attribute('href')
 
-        for chapter_element in chapter_elements:
-            title = chapter_element.get_text(strip=True)
-            url = chapter_element['href']
-            chapters.append({'title': title, 'url': url})
+                # Skip if title is empty or too short
+                if not title or len(title) < 3:
+                    continue
+
+                # Skip if href is empty or not a chapter link
+                if not href or ('/title/' not in href and '/c' not in href):
+                    continue
+
+                # Construct absolute URL
+                if href.startswith('http'):
+                    url = href
+                else:
+                    url = urljoin(manga_url, href)
+
+                chapters.append({'title': title, 'url': url})
+
+            except Exception as e:
+                print(f"Error processing chapter element: {e}")
+                continue
+
+        # Remove duplicates based on URL
+        seen_urls = set()
+        unique_chapters = []
+        for chapter in chapters:
+            if chapter['url'] not in seen_urls:
+                seen_urls.add(chapter['url'])
+                unique_chapters.append(chapter)
+
+        chapters = unique_chapters
 
         # Reverse the chapters list so chapter 1 is at index 0
         chapters.reverse()
-        
+
+        print(f"Found {len(chapters)} unique chapters")
         return chapters
 
-    except requests.exceptions.RequestException as e:
-        print(f"Error fetching manga page: {e}")
+    except Exception as e:
+        print(f"Error in Selenium processing: {e}")
         return None
+    finally:
+        if driver:
+            driver.quit()
 
 def is_valid_manga_image(img_data, min_width=400, min_height=400, min_aspect_ratio=1.2):
     """
@@ -118,32 +192,74 @@ def download_image(img_url, referer, img_index, chapter_dir, chapter_title):
         print(f"[{chapter_title}] Error downloading image {img_index+1}: {e}")
         return (img_index, None, False)
 
+def enable_nsfw_settings(driver):
+    """Enable NSFW settings in MangaPark - MUST be called before any manga operations."""
+    try:
+        print("Enabling NSFW settings...")
+        driver.get("https://mangapark.net/site-settings?group=safeBrowsing")
+
+        # Wait for the page to load
+        time.sleep(3)
+
+        # Find and click the NSFW radio button
+        nsfw_radio = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.CSS_SELECTOR, 'input[type="radio"][name="safe_reading"][value="2"]'))
+        )
+
+        # Click the NSFW option
+        nsfw_radio.click()
+        print("NSFW settings enabled successfully")
+
+        # Wait a moment for the setting to be applied
+        time.sleep(2)
+
+        return True
+    except Exception as e:
+        print(f"Error enabling NSFW settings: {e}")
+        return False
+
+def initialize_browser_with_nsfw():
+    """Initialize browser and enable NSFW settings globally."""
+    print("Initializing browser with NSFW settings...")
+
+    # Setup Chrome options
+    chrome_options = Options()
+    chrome_options.add_argument("--non-headless")  # Run in headless mode
+    chrome_options.add_argument("--disable-gpu")
+    chrome_options.add_argument("--window-size=1920,1080")
+    chrome_options.add_argument("--disable-web-security")
+    chrome_options.add_argument("--disable-features=VizDisplayCompositor")
+
+    driver = webdriver.Chrome(options=chrome_options)
+
+    # Enable NSFW settings first
+    nsfw_enabled = enable_nsfw_settings(driver)
+    if not nsfw_enabled:
+        print("Warning: Could not enable NSFW settings, may not be able to access NSFW content")
+
+    return driver
+
 def download_chapter_with_selenium(chapter_url, chapter_title, max_concurrent_downloads=5):
     """Downloads images for a single chapter using Selenium."""
     print(f"Downloading chapter: {chapter_title}")
-    
+
     # Create directory for the chapter
     chapter_dir = os.path.join("downloads", chapter_title.replace('/', '-').replace('\\', '-').replace(':', '-'))
     os.makedirs(chapter_dir, exist_ok=True)
-    
-    # Setup Chrome options
-    chrome_options = Options()
-    chrome_options.add_argument("--headless")  # Run in headless mode
-    chrome_options.add_argument("--disable-gpu")
-    chrome_options.add_argument("--window-size=1920,1080")
-    
-    # Initialize the driver
+
     driver = None
-    
+
     try:
         # Construct the absolute chapter URL
         base_url = "https://mangapark.net"
         absolute_chapter_url = urljoin(base_url, chapter_url)
-        
-        # Initialize the driver
-        driver = webdriver.Chrome(options=chrome_options)
+
+        # Initialize browser with NSFW settings enabled
+        driver = initialize_browser_with_nsfw()
+
+        # Navigate to the chapter
         driver.get(absolute_chapter_url)
-        
+
         # Wait for the page to load
         print(f"[{chapter_title}] Waiting for page to load...")
         time.sleep(5)  # Initial wait
