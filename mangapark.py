@@ -33,7 +33,7 @@ def get_chapter_info(manga_url, use_nsfw_mode=False):
 
             # Wait for the page to load and JavaScript to execute
             print("Waiting for page to load...")
-            time.sleep(8)  # Give time for JavaScript to load chapters
+            time.sleep(3)  # Reduced wait time for faster loading
 
             # Try to find chapter elements with multiple selectors
             chapter_elements = []
@@ -259,10 +259,10 @@ def enable_nsfw_settings(driver):
         driver.get("https://mangapark.net/site-settings?group=safeBrowsing")
 
         # Wait for the page to load
-        time.sleep(3)
+        time.sleep(1)  # Reduced wait time
 
         # Find and click the NSFW radio button
-        nsfw_radio = WebDriverWait(driver, 10).until(
+        nsfw_radio = WebDriverWait(driver, 5).until(  # Reduced timeout
             EC.element_to_be_clickable((By.CSS_SELECTOR, 'input[type="radio"][name="safe_reading"][value="2"]'))
         )
 
@@ -271,7 +271,7 @@ def enable_nsfw_settings(driver):
         print("NSFW settings enabled successfully")
 
         # Wait a moment for the setting to be applied
-        time.sleep(2)
+        time.sleep(2)  # Wait for NSFW setting to take effect
 
         return True
     except Exception as e:
@@ -282,13 +282,26 @@ def initialize_browser_with_nsfw():
     """Initialize browser and enable NSFW settings globally."""
     print("Initializing browser with NSFW settings...")
 
-    # Setup Chrome options
+    # Setup Chrome options for faster performance
     chrome_options = Options()
-    chrome_options.add_argument("--non-headless")  # Run in headless mode
+    chrome_options.add_argument("--non-headless")  # Run in headless mode for speed
     chrome_options.add_argument("--disable-gpu")
     chrome_options.add_argument("--window-size=1920,1080")
     chrome_options.add_argument("--disable-web-security")
     chrome_options.add_argument("--disable-features=VizDisplayCompositor")
+    chrome_options.add_argument("--disable-images")  # Disable images for faster loading
+    chrome_options.add_argument("--disable-plugins")
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-dev-shm-usage")
+    chrome_options.add_argument("--disable-extensions")
+    chrome_options.add_argument("--disable-default-apps")
+    chrome_options.add_argument("--disable-background-timer-throttling")
+    chrome_options.add_argument("--disable-renderer-backgrounding")
+    chrome_options.add_argument("--disable-backgrounding-occluded-windows")
+    chrome_options.add_argument("--disable-ipc-flooding-protection")
+
+    # Set eager page load strategy for faster loading
+    chrome_options.page_load_strategy = 'eager'
 
     driver = webdriver.Chrome(options=chrome_options)
 
