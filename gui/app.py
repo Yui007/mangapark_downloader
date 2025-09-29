@@ -305,9 +305,9 @@ class MangaParkWindow(QMainWindow):
 
     def _on_download_clicked(self) -> None:
         selected = [
-            (item.data(Qt.ItemDataRole.UserRole)
+            item.data(Qt.ItemDataRole.UserRole)
             for i in range(self.chapter_list.count())
-            if (item := self.chapter_list.item(i)) and item.isSelected())
+            if (item := self.chapter_list.item(i)) and item.isSelected()
         ]
         if not selected:
             self._show_error("Select at least one chapter.")
